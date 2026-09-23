@@ -323,6 +323,71 @@ a { color: inherit; }
   color: #19734f;
 }
 
+.page-debug,
+.page-monitor {
+  min-height: calc(100vh - 72px);
+  overflow: auto;
+}
+
+.debug-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.debug-output {
+  max-height: 320px;
+  margin: 18px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-3);
+  color: var(--text-soft);
+  font: 11px/1.55 "SFMono-Regular", Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.monitor-workspace {
+  overflow: auto;
+}
+
+.monitor-table-wrap {
+  overflow-x: auto;
+}
+
+.monitor-table-wrap table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.monitor-table-wrap th,
+.monitor-table-wrap td {
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.monitor-table-wrap th {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.monitor-table-wrap td:first-child {
+  color: var(--text);
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .debug-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .environment-pill {
   display: inline-flex;
   align-items: center;

@@ -58,6 +58,17 @@ export async function requestKnowledgeStats(type, settings) {
   return requestJson(backendMeta(type, settings).baseUrl, '/knowledge/stats')
 }
 
+export async function requestKnowledgeList(type, settings, options = {}) {
+  const params = new URLSearchParams({
+    offset: String(options.offset ?? 0),
+    limit: String(options.limit ?? 50),
+    q: String(options.q ?? ''),
+    mode: String(options.mode ?? 'doc'),
+    maxChars: String(options.maxChars ?? 4000)
+  })
+  return requestJson(backendMeta(type, settings).baseUrl, `/knowledge/list?${params}`)
+}
+
 export async function runEvaluation(type, settings, body = null) {
   return requestJson(backendMeta(type, settings).baseUrl, '/eval/run', {
     method: 'POST',
