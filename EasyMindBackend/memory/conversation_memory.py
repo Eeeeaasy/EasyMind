@@ -20,8 +20,14 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-import chromadb
-import redis
+try:
+    import chromadb
+except ImportError:
+    chromadb = None
+try:
+    import redis
+except ImportError:
+    redis = None
 from anthropic import AsyncAnthropic
 
 logger = logging.getLogger(__name__)
@@ -91,6 +97,8 @@ class MemoryManager:
         base_url:     Optional[str] = None,
         model:        str = "claude-3-5-sonnet-20241022",
     ):
+        if redis is None or chromadb is None:
+            raise RuntimeError("完整记忆模式需要安装 redis 和 chromadb；简单 Agent 模式无需这些依赖")
         kwargs: Dict[str, Any] = {"api_key": api_key}
         if base_url:
             kwargs["base_url"] = base_url
@@ -365,3 +373,35 @@ class MemoryManager:
         if isinstance(value, list):
             return [cls._safe_metadata_value(v) for v in value]
         return value
+
+
+class InMemoryMemoryManager:
+    """无外部存储的轻量记忆，供本地 Agent 对话模式使用。"""
+
+    def __init__(self):
+        self._messages: Dict[str, List[Message]] = {}
+
+    async def add_message(
+        self,
+        user_id: str,
+        conv_id: str,
+        role: MsgRole,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        key = f"{user_id}:{conv_id}"
+        messages = self._messages.setdefault(key, [])
+        messages.append(Message(role=role, content=str(content), metadata=metadata or {}))
+        del messages[:-20]
+
+    async def get_context(self, user_id: str, conv_id: str, query: str = "") -> MemoryContext:
+        messages = list(self._messages.get(f"{user_id}:{conv_id}", []))
+        return MemoryContext(
+            recent_messages=messages,
+            relevant_history=[],
+            user_profile={},
+            summary="",
+        )
+
+    async def update_profile(self, user_id: str, conv_id: str) -> None:
+        return None

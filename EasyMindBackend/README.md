@@ -142,7 +142,21 @@ http://localhost:8000/docs
 curl http://localhost/health
 ```
 
-## 4. Docker Run 开发模式
+## 4. 仅启动 Agent 对话后端
+
+如果只需要测试 Agent 对话，不需要 Redis、ChromaDB、Prometheus 或 Nginx，可以直接在后端目录运行简单模式：
+
+PowerShell：
+
+```powershell
+cd EasyMindBackend
+$env:EASYMIND_SIMPLE_MODE = "1"
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+简单模式使用进程内记忆，服务重启后会清空对话历史，也不会启用知识库检索。
+
+## 5. Docker Run 开发模式
 
 开发时可以只用 Compose 启动依赖，然后用 `docker run` 挂载当前代码目录。
 

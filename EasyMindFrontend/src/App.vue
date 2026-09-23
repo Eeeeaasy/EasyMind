@@ -92,6 +92,7 @@ import {
   addKnowledge,
   backendMeta,
   createInitialSettings,
+  getDocsUrl,
   reloadSkills,
   requestChat,
   requestHealth,
@@ -134,7 +135,7 @@ let toastTimer;
 let messageSequence = 0;
 
 const currentBackend = computed(() => backendMeta(settings.backend, settings));
-const docsUrl = computed(() => `${currentBackend.value.baseUrl}/docs`);
+const docsUrl = computed(() => getDocsUrl(settings.backend, settings));
 const userInitial = computed(() =>  (settings.userId || "U").slice(0, 1).toUpperCase());
 const activeAlerts = computed(() => monitorData.value.active_alerts || []);
 const agentCount = computed(  () => Object.keys(monitorData.value.agent_stats || {}).length);
@@ -222,6 +223,8 @@ async function sendMessage() {
   messages.value.push({ id: createMessageId(), role: "user", content });
   draft.value = "";
   busy.value = true;
+  const loadingMessageId = createMessageId();
+  messages.value.push({ id: loadingMessageId, role: "loading" });
   try {
     const response = await requestChat(settings.backend, settings, content);
     if (response.conversationId && !settings.conversationId) {
@@ -252,6 +255,7 @@ async function sendMessage() {
       meta: "请求失败",
     });
   } finally {
+    messages.value = messages.value.filter((item) => item.id !== loadingMessageId);
     busy.value = false;
   }
 }

@@ -1,25 +1,263 @@
 <template>
   <section class="page page-chat">
-    <div class="page-heading"><div class="heading-copy"><span class="kicker">Conversation lab</span><h1>和客服 Agent 对话</h1><p>发送一条真实请求，查看它如何识别意图、选择 Agent 并生成回复。</p></div><div class="heading-actions"><span class="session-label">{{ settings.conversationId || '新会话' }}</span><button class="quiet-button" @click="$emit('clear')">清空</button></div></div>
+    <div class="page-heading">
+      <div class="heading-copy">
+        <span class="kicker">Conversation lab</span>
+        <h1>和客服 Agent 对话</h1>
+        <p>发送一条真实请求，查看它如何识别意图、选择 Agent 并生成回复。</p>
+      </div>
+      <div class="heading-actions">
+        <span class="session-label">{{
+          settings.conversationId || "新会话"
+        }}</span
+        ><button class="quiet-button" @click="$emit('clear')">清空</button>
+      </div>
+    </div>
     <div class="chat-layout">
       <section class="chat-stage">
-        <div class="stage-bar"><div class="stage-context"><span class="context-dot"></span><span>{{ currentBackend.baseUrl }}</span></div><span>{{ messages.length }} 条消息</span></div>
-        <div class="messages" ref="messageList">
-          <article v-for="item in messages" :key="item.id" :class="['message', item.role]"><div class="message-meta"><span>{{ item.role === 'user' ? '你' : currentBackend.label + ' Agent' }}</span><small v-if="item.meta">{{ item.meta }}</small></div><p>{{ item.content }}</p><div v-if="item.trace" class="message-trace"><div class="trace-head"><span>工具调用</span><small v-if="item.trace.requestId">#{{ item.trace.requestId }}</small></div><div v-if="item.trace.toolCalls?.length" class="trace-calls"><details v-for="(call, index) in item.trace.toolCalls" :key="`${item.id}-${index}`" open><summary><strong>{{ call.tool_name || 'unknown_tool' }}</strong><span>{{ call.success ? '成功' : '失败' }}</span></summary><pre>{{ formatJson(call.input || {}) }}</pre></details></div><div v-else class="trace-empty-block"><p>本次请求没有可展示的工具输入。</p></div></div></article>
-          <div v-if="messages.length === 0" class="empty-state"><div class="empty-symbol">✦</div><h2>从一个客户问题开始</h2><p>下面的快捷问题只是起点，你也可以直接输入自己的测试用例。</p><div class="starter-prompts"><button @click="$emit('prompt', '我想申请退款，订单号是 #12345')">退款申请</button><button @click="$emit('prompt', '登录时提示错误，应该怎么排查？')">技术排查</button><button @click="$emit('prompt', '发票多久可以开具？')">发票咨询</button></div></div>
+        <div class="stage-bar">
+          <div class="stage-context">
+            <span class="context-dot"></span
+            ><span>{{ currentBackend.baseUrl }}</span>
+          </div>
+          <span>{{ messages.length }} 条消息</span>
         </div>
-        <form class="composer" @submit.prevent="$emit('send')"><textarea :value="draft" rows="3" placeholder="输入消息..." @input="$emit('update:draft', $event.target.value)" @keydown.meta.enter.prevent="$emit('send')" @keydown.ctrl.enter.prevent="$emit('send')"></textarea><div class="composer-bottom"><span>⌘ / Ctrl + Enter 发送</span><button type="submit" :disabled="busy || !draft.trim()">{{ busy ? '处理中' : '发送' }}</button></div></form>
+        <div class="messages" ref="messageList">
+          <article
+            v-for="item in messages"
+            :key="item.id"
+            :class="['message', item.role]"
+          >
+            <div class="message-meta">
+              <span>{{ item.role === "user" ? "你" : "小E bot" }}</span
+              ><small v-if="item.meta">{{ item.meta }}</small>
+            </div>
+            <div
+              v-if="item.role === 'loading'"
+              class="loading-indicator"
+              aria-label="正在准备回答"
+            >
+              <span></span><span></span><span></span><em>正在准备回答</em>
+            </div>
+            <p v-else>{{ item.content }}</p>
+            <div v-if="item.trace" class="message-trace">
+              <div class="trace-head">
+                <span>工具调用</span
+                ><small v-if="item.trace.requestId"
+                  >#{{ item.trace.requestId }}</small
+                >
+              </div>
+              <div v-if="item.trace.toolCalls?.length" class="trace-calls">
+                <details
+                  v-for="(call, index) in item.trace.toolCalls"
+                  :key="`${item.id}-${index}`"
+                  open
+                >
+                  <summary>
+                    <strong>{{ call.tool_name || "unknown_tool" }}</strong
+                    ><span>{{ call.success ? "成功" : "失败" }}</span>
+                  </summary>
+                  <pre>{{ formatJson(call.input || {}) }}</pre>
+                </details>
+              </div>
+              <div v-else class="trace-empty-block">
+                <p>本次请求没有可展示的工具输入。</p>
+              </div>
+            </div>
+          </article>
+          <div v-if="messages.length === 0" class="empty-state">
+            <div class="empty-symbol">✦</div>
+            <h2>从一个客户问题开始</h2>
+            <p>下面的快捷问题只是起点，你也可以直接输入自己的测试用例。</p>
+            <div class="starter-prompts">
+              <button @click="$emit('prompt', '我想申请退款，订单号是 #12345')">
+                退款申请</button
+              ><button
+                @click="$emit('prompt', '登录时提示错误，应该怎么排查？')"
+              >
+                技术排查</button
+              ><button @click="$emit('prompt', '发票多久可以开具？')">
+                发票咨询
+              </button>
+            </div>
+          </div>
+        </div>
+        <form class="composer" @submit.prevent="$emit('send')">
+          <textarea
+            :value="draft"
+            rows="3"
+            placeholder="输入消息..."
+            @input="$emit('update:draft', $event.target.value)"
+            @keydown.meta.enter.prevent="$emit('send')"
+            @keydown.ctrl.enter.prevent="$emit('send')"
+          ></textarea>
+          <div class="composer-bottom">
+            <span>⌘ / Ctrl + Enter 发送</span
+            ><button type="submit" :disabled="busy || !draft.trim()">
+              {{ busy ? "处理中" : "发送" }}
+            </button>
+          </div>
+        </form>
       </section>
-      <aside class="chat-sidebar"><div class="chat-sidebar-scroll">
-        <section class="side-card session-card"><div class="card-heading"><div><span class="kicker">Session</span><h2>会话信息</h2></div><span class="status-copy muted">{{ settings.conversationId ? '已启用' : '新会话' }}</span></div><div class="session-grid"><div><span>会话 ID</span><strong>{{ settings.conversationId || '自动生成' }}</strong></div><div><span>用户 ID</span><strong>{{ settings.userId || 'anonymous' }}</strong></div></div></section>
-        <section class="side-card connection-card"><div class="card-heading"><div><span class="kicker">Python connection</span><h2>连接配置</h2></div><span class="status-copy" :class="healthOk ? 'success' : 'muted'">{{ healthLabel }}</span></div><label><span>用户 ID</span><input v-model="settings.userId" @change="$emit('persist')" placeholder="u1001" /></label><label><span>会话 ID</span><input v-model="settings.conversationId" @change="$emit('persist')" placeholder="自动生成" /></label><div class="side-actions"><button @click="$emit('check-health')">检查连接</button><button class="quiet-button" @click="$emit('refresh')">刷新</button></div></section>
-        <section class="side-card trace-card"><div class="card-heading"><div><span class="kicker">Last trace</span><h2>最近一次请求</h2></div><span class="trace-status" :class="lastResponse ? 'has-data' : ''"></span></div><div v-if="lastResponse" class="trace-body"><div class="latency"><span>响应耗时</span><strong>{{ lastResponse.latencyMs || '-' }}<small> ms</small></strong></div><dl class="detail-list"><div><dt>主 Agent</dt><dd>{{ lastResponse.primaryAgent || lastResponse.agentType || '-' }}</dd></div><div><dt>意图</dt><dd>{{ lastResponse.intent || '-' }}</dd></div><div><dt>置信度</dt><dd>{{ formatPercent(lastResponse.routingConfidence) }}</dd></div><div><dt>知识库</dt><dd :class="lastResponse.knowledgeUsed ? 'success' : 'muted'">{{ lastResponse.knowledgeUsed ? '已使用' : '未使用' }}</dd></div></dl></div><p v-else class="side-empty">发送消息后，这里会显示 Agent 路由、意图和耗时。</p></section>
-        <section class="side-card monitor-card"><div class="card-heading"><div><span class="kicker">Runtime</span><h2>运行状态</h2></div><button class="link-button" @click="$emit('refresh-monitor')">刷新</button></div><div class="mini-stats"><div><strong>{{ totalRequests }}</strong><span>请求</span></div><div><strong>{{ agentCount }}</strong><span>Agent</span></div><div><strong>{{ activeAlerts.length }}</strong><span>告警</span></div></div><p v-if="!activeAlerts.length" class="healthy-note">当前没有活跃告警。</p></section>
-      </div></aside>
+      <aside class="chat-sidebar">
+        <div class="chat-sidebar-scroll">
+          <section class="side-card session-card">
+            <div class="card-heading">
+              <div>
+                <span class="kicker">Session</span>
+                <h2>会话信息</h2>
+              </div>
+              <span class="status-copy muted">{{
+                settings.conversationId ? "已启用" : "新会话"
+              }}</span>
+            </div>
+            <div class="session-grid">
+              <div>
+                <span>会话 ID</span
+                ><strong>{{ settings.conversationId || "自动生成" }}</strong>
+              </div>
+              <div>
+                <span>用户 ID</span
+                ><strong>{{ settings.userId || "anonymous" }}</strong>
+              </div>
+            </div>
+          </section>
+          <section class="side-card connection-card">
+            <div class="card-heading">
+              <div>
+                <span class="kicker">Python connection</span>
+                <h2>连接配置</h2>
+              </div>
+              <span
+                class="status-copy"
+                :class="healthOk ? 'success' : 'muted'"
+                >{{ healthLabel }}</span
+              >
+            </div>
+            <label
+              ><span>用户 ID</span
+              ><input
+                v-model="settings.userId"
+                @change="$emit('persist')"
+                placeholder="u1001" /></label
+            ><label
+              ><span>会话 ID</span
+              ><input
+                v-model="settings.conversationId"
+                @change="$emit('persist')"
+                placeholder="自动生成"
+            /></label>
+            <div class="side-actions">
+              <button @click="$emit('check-health')">检查连接</button
+              ><button class="quiet-button" @click="$emit('refresh')">
+                刷新
+              </button>
+            </div>
+          </section>
+          <section class="side-card trace-card">
+            <div class="card-heading">
+              <div>
+                <span class="kicker">Last trace</span>
+                <h2>最近一次请求</h2>
+              </div>
+              <span
+                class="trace-status"
+                :class="lastResponse ? 'has-data' : ''"
+              ></span>
+            </div>
+            <div v-if="lastResponse" class="trace-body">
+              <div class="latency">
+                <span>响应耗时</span
+                ><strong
+                  >{{ lastResponse.latencyMs || "-" }}<small> ms</small></strong
+                >
+              </div>
+              <dl class="detail-list">
+                <div>
+                  <dt>主 Agent</dt>
+                  <dd>
+                    {{
+                      lastResponse.primaryAgent || lastResponse.agentType || "-"
+                    }}
+                  </dd>
+                </div>
+                <div>
+                  <dt>意图</dt>
+                  <dd>{{ lastResponse.intent || "-" }}</dd>
+                </div>
+                <div>
+                  <dt>置信度</dt>
+                  <dd>{{ formatPercent(lastResponse.routingConfidence) }}</dd>
+                </div>
+                <div>
+                  <dt>知识库</dt>
+                  <dd :class="lastResponse.knowledgeUsed ? 'success' : 'muted'">
+                    {{ lastResponse.knowledgeUsed ? "已使用" : "未使用" }}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <p v-else class="side-empty">
+              发送消息后，这里会显示 Agent 路由、意图和耗时。
+            </p>
+          </section>
+          <section class="side-card monitor-card">
+            <div class="card-heading">
+              <div>
+                <span class="kicker">Runtime</span>
+                <h2>运行状态</h2>
+              </div>
+              <button class="link-button" @click="$emit('refresh-monitor')">
+                刷新
+              </button>
+            </div>
+            <div class="mini-stats">
+              <div>
+                <strong>{{ totalRequests }}</strong
+                ><span>请求</span>
+              </div>
+              <div>
+                <strong>{{ agentCount }}</strong
+                ><span>Agent</span>
+              </div>
+              <div>
+                <strong>{{ activeAlerts.length }}</strong
+                ><span>告警</span>
+              </div>
+            </div>
+            <p v-if="!activeAlerts.length" class="healthy-note">
+              当前没有活跃告警。
+            </p>
+          </section>
+        </div>
+      </aside>
     </div>
   </section>
 </template>
 <script setup>
-defineProps({ settings: Object, currentBackend: Object, messages: Array, draft: String, busy: Boolean, healthOk: Boolean, healthLabel: String, lastResponse: Object, totalRequests: Number, agentCount: Number, activeAlerts: Array, formatPercent: Function, formatJson: Function })
-defineEmits(['clear', 'prompt', 'send', 'update:draft', 'persist', 'check-health', 'refresh', 'refresh-monitor'])
+defineProps({
+  settings: Object,
+  currentBackend: Object,
+  messages: Array,
+  draft: String,
+  busy: Boolean,
+  healthOk: Boolean,
+  healthLabel: String,
+  lastResponse: Object,
+  totalRequests: Number,
+  agentCount: Number,
+  activeAlerts: Array,
+  formatPercent: Function,
+  formatJson: Function,
+});
+defineEmits([
+  "clear",
+  "prompt",
+  "send",
+  "update:draft",
+  "persist",
+  "check-health",
+  "refresh",
+  "refresh-monitor",
+]);
 </script>

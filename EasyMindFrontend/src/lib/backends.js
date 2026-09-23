@@ -29,6 +29,10 @@ export function backendMeta(_type, settings) {
   }
 }
 
+export function getDocsUrl(type, settings) {
+  return runtimeConfig().docsUrl || import.meta.env.VITE_API_DOCS_URL || `${backendMeta(type, settings).baseUrl}/docs`
+}
+
 export async function requestHealth(type, settings) {
   return requestJson(backendMeta(type, settings).baseUrl, '/health')
 }

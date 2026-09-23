@@ -216,9 +216,8 @@ class IntentRecognizer:
                 temperature=0.1,
                 messages=[{"role": "user", "content": prompt}],
             )
-            raw = resp.content[0].text
-            s, e = raw.find("{"), raw.rfind("}") + 1
-            data = json.loads(raw[s:e])
+            raw = self._response_text(resp)
+            data = self._parse_json_object(raw)
             try:
                 data["intent"] = IntentCategory(data["intent"])
             except ValueError:
@@ -305,13 +304,32 @@ class IntentRecognizer:
                 model=self.model, max_tokens=256, temperature=0.0,
                 messages=[{"role": "user", "content": prompt}],
             )
-            raw = resp.content[0].text
-            s, e = raw.find("{"), raw.rfind("}") + 1
-            return json.loads(raw[s:e])
+            raw = self._response_text(resp)
+            return self._parse_json_object(raw)
         except Exception:
             return {"order_id": [], "product": [], "date": [], "amount": [], "error_code": []}
 
     # ── 辅助 ──────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _response_text(resp: Any) -> str:
+        """兼容 Anthropic 兼容接口返回的文本块或空内容块。"""
+        for block in getattr(resp, "content", None) or []:
+            text = getattr(block, "text", None)
+            if text is None and isinstance(block, dict):
+                text = block.get("text") or block.get("content")
+            if isinstance(text, str) and text.strip():
+                return text.strip()
+        return ""
+
+    @staticmethod
+    def _parse_json_object(raw: str) -> Dict[str, Any]:
+        if not raw:
+            raise ValueError("LLM 返回空内容")
+        start, end = raw.find("{"), raw.rfind("}") + 1
+        if start < 0 or end <= start:
+            raise ValueError("LLM 返回内容不包含 JSON 对象")
+        return json.loads(raw[start:end])
 
     async def _load_template_embeddings(self) -> None:
         """懒加载所有模板的 Embedding（只在首次调用时执行）。"""

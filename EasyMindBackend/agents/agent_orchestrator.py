@@ -150,7 +150,19 @@ class BaseAgent:
             system=self.system_prompt,
             messages=messages,
         )
-        return resp.content[0].text
+        content = self._response_text(resp)
+        return content or "抱歉，模型暂时没有返回有效内容，请稍后重试。"
+
+    @staticmethod
+    def _response_text(resp: Any) -> str:
+        """兼容 Anthropic 兼容接口返回的文本块或空内容块。"""
+        for block in getattr(resp, "content", None) or []:
+            text = getattr(block, "text", None)
+            if text is None and isinstance(block, dict):
+                text = block.get("text") or block.get("content")
+            if isinstance(text, str) and text.strip():
+                return text.strip()
+        return ""
 
     def _needs_escalation(self, content: str) -> bool:
         """检测 Agent 是否建议升级（简单关键词检测）。"""

@@ -71,23 +71,11 @@ async def lifespan(app: FastAPI):
 
     print(BANNER, flush=True)
 
-    from agents.agent_orchestrator import AgentOrchestrator, Request
-    from core.intent_recognizer import IntentRecognizer
-    from evaluation.evaluator import EndToEndEvaluator
-    from mcp.knowledge_base import KnowledgeBase
-    from mcp.tool_manager import MCPToolManager, Tool
-    from memory.conversation_memory import MemoryManager
-    from monitor.performance_monitor import PerformanceMonitor
+    from agents.agent_orchestrator import AgentOrchestrator
+    from memory.conversation_memory import InMemoryMemoryManager
 
     cfg = _anthropic_cfg()
     logger.info(f"模型: {cfg['model']}  base_url: {cfg.get('base_url', '(官方)')}")
-
-    # 意图识别器（Orchestrator 内部也会创建，这里单独暴露给 Evaluator）
-    recognizer = IntentRecognizer(
-        api_key=cfg["api_key"],
-        base_url=cfg.get("base_url"),
-        model=cfg["model"],
-    )
 
     # Agent 编排器
     _orchestrator = AgentOrchestrator(
@@ -95,6 +83,23 @@ async def lifespan(app: FastAPI):
         base_url=cfg.get("base_url"),
         model=cfg["model"],
     )
+
+    if os.getenv("EASYMIND_SIMPLE_MODE", "0") == "1":
+        _memory = InMemoryMemoryManager()
+        _tool_manager = None
+        _monitor = None
+        _evaluator = None
+        logger.info("EasyMind 简单对话模式：跳过 Redis、ChromaDB、知识库、监控和评测")
+        yield
+        logger.info("EasyMind 已关闭")
+        return
+
+    from core.intent_recognizer import IntentRecognizer
+    from evaluation.evaluator import EndToEndEvaluator
+    from mcp.knowledge_base import KnowledgeBase
+    from mcp.tool_manager import MCPToolManager, Tool
+    from memory.conversation_memory import MemoryManager
+    from monitor.performance_monitor import PerformanceMonitor
 
     # 记忆管理器（Redis 工作记忆 + ChromaDB 情景记忆/用户画像）
     _memory = MemoryManager(
